@@ -87,18 +87,7 @@ from langchain.llms import Ollama
 # Set your model, for example, Llama 2 7B
 llm = Ollama(model="llama2:7b")
 ```
-### Running Queries
 
-Execute queries using the LangChain chain:
-```python
-from langchain.chains import RetrievalQA
-
-# Create a chain with OLLama as the retriever
-qachain = RetrievalQA.from_chain_type(ollama, retriever=vectorstore.as_retriever())
-
-# Run a query
-response = qachain({"query": "Your question here"})
-```
 For more detailed information on setting up and using OLLama with LangChain, please refer to the [OLLama documentation](https://python.langchain.com/docs/integrations/llms/ollama) and [LangChain GitHub repository](https://js.langchain.com/docs/integrations/chat/ollama).
 
 
@@ -220,7 +209,7 @@ The MIT License (MIT)
 
 Don't forget to adapt your models and pathes at the marked lines in talkollama.py.
 ```sh
-python talkllama.py
+python controlcenter.py
 
 ```
 
