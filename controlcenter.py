@@ -18,7 +18,6 @@ from PyQt5.QtCore import QSize
 from talkollama import AiTalk
 from talkollama import LogEmitter
 
-model = ""
 
 def cmdlineCommands(cmdlineparam, scriptpath):
 	result = subprocess.run([cmdlineparam, scriptpath], shell=True, capture_output=True, text=True)
@@ -41,7 +40,10 @@ class ControlCenter(QMainWindow):
 		uiFilePath = os.path.join(path, "controlcenter.ui")
 		mainWidget = uic.loadUi(uiFilePath, self)
 
-		self.toggleOnOff = False
+		self.toggleOnOff 	= False
+		self.model 		= None
+		self.aitalk 		= None
+		self.language 		= None
 		
 		self.startllmButton = self.findChild(QPushButton, 'startllmButton')
 		self.startllmButton.clicked.connect(self.startllmButtonClicked)
@@ -74,13 +76,14 @@ class ControlCenter(QMainWindow):
        
 
 	def startllmButtonClicked(self):
-		global model
 
 		if self.toggleOnOff == False:
-			s = "Model started: " + model
+			s = "Model started: " + self.model
 			self.dispStart.setText(s)
 
 			# Start talking in a separate thread
+			self.aitalk = AiTalk(self.model, self.language)
+			self.aitalk.log_emitter.log_signal.connect(self.update_log_text)
 			self.worker_thread = threading.Thread(target=self.start_aiprocess)
 			self.worker_thread.start()
 
@@ -91,26 +94,19 @@ class ControlCenter(QMainWindow):
 	
 	
 	def stopllmButtonClicked(self):
-		self.start_aiprocess()
+		self.stop_aiprocess()
 
 
 	def selLLMclicked(self):
-		global model, aitalk
 		selected_item = self.sender().selectedItems()[0]
-		model = selected_item.text()
-		#aitalk = AiTalk(model,'de')
-		# Connect the log signal to the update_log_text slot
-		#aitalk.log_emitter.log_signal.connect(self.update_log_text)
+		self.model = selected_item.text()
 		
 
 	def selLangclicked(self):
-		global model, aitalk
+		#global  aitalk
 		selected_item = self.sender().selectedItems()[0]
-		language = selected_item.text()
-		aitalk = AiTalk(model,language)
-		# Connect the log signal to the update_log_text slot
-		aitalk.log_emitter.log_signal.connect(self.update_log_text)
-
+		self.language = selected_item.text()
+		
 
 	def update_log_text(self, message):
 		# Slot to update the QTextEdit with log messages
@@ -118,12 +114,10 @@ class ControlCenter(QMainWindow):
 
 
 	def start_aiprocess(self):
-		global aitalk
-		aitalk.aiprocess()
+		self.aitalk.aiprocess()
   
 	def stop_aiprocess(self):
-		global aitalk
-		aitalk.stop_aiprocess()
+		self.aitalk.stop_aiprocess()
 
 	
 

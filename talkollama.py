@@ -30,7 +30,6 @@ import os
 import sys
 import argparse
 from contextlib import contextmanager
-import threading
 
 # listen
 import speech_recognition as sr
@@ -45,8 +44,12 @@ from pygame import mixer
 import time
 import jsons
 import re
+import threading
+from threading import Thread
+
 
 from PyQt5.QtCore import QObject, pyqtSignal
+
 
 class LogEmitter(QObject):
     log_signal = pyqtSignal(str)
@@ -69,13 +72,17 @@ class AiTalk:
 		self.lang = lang
 		self.chat_model_response = None
 		self.template = ""
+		#self.thread1 = Thread(target=initMixer)
+		
+		text='Language selected: '+self.lang
+		self.log_emitter.log_signal.emit(text)
 		
 		# here you can add your preferred language. Don't forget to download the corresponding language model from VOSK
 		if self.lang == 'de':
 			self.prompt = PromptTemplate(
 			    template="""/
-				Du bist ein Assistent und beantwortest nur die Fragen des Benutzers auf Deutsch in kompakter Form. /
-				Frage: {question}. Antworte in maximal 2 Sätzen und dann Stop. Antwort: """,
+				Ich bin ein Assistent und beantworte die Fragen des Benutzers auf Deutsch in kompakter Form. /
+				Ich antworte in maximal 2 Sätzen und warte dann. Antwort: """,
 			    input_variables=["question"]
 			)	
 		elif self.lang == 'en':
@@ -85,33 +92,53 @@ class AiTalk:
 				Question: {question}. Answer in maximal two sentences and then wait. Answer: """,
 			    input_variables=["question"]
 			)
-		
-		self.log_emitter.log_signal.emit('Initialisation done\n')
 			
-
-	def initSoundystem(self):
-		text='Language selected: '+self.lang
-		self.log_emitter.log_signal.emit(text)
-		self.log_emitter.log_signal.emit('Initialising Vosk. ** Please wait a moment **\n')
-		if self.lang == 'de':
-			#VOSK speech model
-			self.listenmodel = Model("./languagemodels/vosk-model-de-0.21", lang="de-DE")		
-		elif self.lang == 'en':
-			#VOSK speech model
-			self.listenmodel = Model("./languagemodels/vosk-model-en-us-0.22", lang="en-US")
-
-		
-		self.rec = KaldiRecognizer(self.listenmodel, 16000)
-		
-		self.sr = sr
-		self.mic = sr.Microphone() 
-		self.recog = sr.Recognizer()
-		self.mixer = mixer
-		self.mixer.init()
-		
 		# Add a threading event to control the AI processing
 		self.stop_event = threading.Event()
+		
+		self.log_emitter.log_signal.emit('Initialisation done\n')
+		
+		self.initAudioSystem()  # Initialize audio system here
 	
+	
+	
+	
+	def getVoskModel(self):
+		# Method to get the appropriate Vosk model based on language
+		if self.lang == 'de':
+			return Model("./languagemodels/vosk-model-de-0.21", lang="de-DE")
+		elif self.lang == 'en':
+			return Model("./languagemodels/vosk-model-en-us-0.22", lang="en-US")
+		else:
+			# Handle cases where the language is not supported
+			raise ValueError(f"Unsupported language: {self.lang}")
+	
+	
+	def initAudioSystem(self):
+		self.log_emitter.log_signal.emit('Initialising Vosk. ** Please wait a moment **\n')
+		# Initialize pygame mixer
+		self.mixer = mixer
+		self.mixer.init()
+		print('*')
+		#self.thread1.start()
+
+		# Initialize Vosk model and recognizer
+		self.listenmodel = self.getVoskModel()
+		print('**###')	
+		self.rec = KaldiRecognizer(self.listenmodel, 16000)
+		print('**')	
+		self.sr = sr
+		self.mic = sr.Microphone() 
+		
+		self.recog = sr.Recognizer()
+		
+		print('***')
+		# Adjust energy threshold for ambient noise level
+		self.recog.energy_threshold = 4000
+
+		# Set dynamic noise threshold (adjust according to your environment)
+		self.recog.dynamic_energy_adjustment_ratio = 1.3	
+
 
 	def extract_string(self,string):
 		# Validate the JSON string
@@ -182,19 +209,14 @@ class AiTalk:
 
 	def get_voice_input(self):
 
+		self.sayListening()
+		
 		with self.mic as source:
-			
-			self.sayListening()
-			
-			# Adjust energy threshold for ambient noise level
-			self.recog.energy_threshold = 4000
 
-			# Set dynamic noise threshold (adjust according to your environment)
-			self.recog.dynamic_energy_adjustment_ratio = 1.3
-			
-			self.recog.adjust_for_ambient_noise(source)
-			
+			self.recog.adjust_for_ambient_noise(self.mic)
+		
 			print("Listening...")
+		
 			audio = self.recog.listen(source)
 
 			try:
@@ -231,6 +253,7 @@ class AiTalk:
 	def aiprocess(self):
 
 		print('Model loading ...', self.model)
+		#self.thread1.join()
 
 		chat_model = ChatOllama(
 					model=self.model,
@@ -244,7 +267,20 @@ class AiTalk:
 		                	repeat_penalty = '1.2',	
 		)
 		
-		self.initSoundystem()
+		question = ""
+		modified_prompt: str = self.prompt.format()
+
+		messages = [
+			HumanMessage(
+				content=modified_prompt
+			)
+		]
+		time.sleep(2)
+		#print(messages)
+
+		self.chat_model_response = chat_model(messages)
+		self.answer()
+		
 		
 		while not self.stop_event.is_set():
 			question = ""
@@ -256,7 +292,7 @@ class AiTalk:
 					self.stop_event.set()
 					break
 				
-				modified_prompt: str = self.prompt.format(question=question)
+				#modified_prompt: str = self.prompt.format(question=question)
 
 				messages = [
 					HumanMessage(
