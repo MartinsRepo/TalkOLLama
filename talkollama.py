@@ -82,14 +82,14 @@ class AiTalk:
 			self.prompt = PromptTemplate(
 			    template="""/
 				Ich bin ein Assistent und beantworte die Fragen des Benutzers auf Deutsch in kompakter Form. /
-				Ich antworte in maximal 2 Sätzen und warte dann. Antwort: """,
+				Ich antworte in maximal 2 Sätzen und warte dann. Frage: {question}. Antwort: """,
 			    input_variables=["question"]
 			)	
 		elif self.lang == 'en':
 			self.prompt = PromptTemplate(
 			    template="""/
 				You are a chatbot assistant and you are answering to the user questions in english by compact sentences. /
-				Question: {question}. Answer in maximal two sentences and then wait. Answer: """,
+				Question: {question}. Question: {question}. Answer in maximal two sentences and then wait. Answer: """,
 			    input_variables=["question"]
 			)
 			
@@ -182,7 +182,7 @@ class AiTalk:
 	  
 		speak = gTTS(text=text, lang=self.lang, slow=False) 
 		self.audioTalk(speak,'start.wav')
-		time.sleep(2)
+		time.sleep(1)
   
 
 	def answer(self):
@@ -204,7 +204,7 @@ class AiTalk:
 		elif self.lang == 'en':
 			speak = gTTS("I didn't understand your question", lang=self.lang, slow=False, pre_processor_funcs = [abbreviations, end_of_line]) 
 		self.audioTalk(speak, 'optimized_output.wav')
-		time.sleep(2)
+		time.sleep(1)
 
 
 	def get_voice_input(self):
@@ -267,17 +267,19 @@ class AiTalk:
 		                	repeat_penalty = '1.2',	
 		)
 		
-		question = ""
-		modified_prompt: str = self.prompt.format()
+		if self.lang == 'de':
+			question="Können wir miteinander sprechen?"
+		elif self.lang == 'en':
+			question="Are you ready to talk?"
+		
+		modified_prompt: str = self.prompt.format( question=question)
 
 		messages = [
 			HumanMessage(
 				content=modified_prompt
 			)
 		]
-		time.sleep(2)
-		#print(messages)
-
+		
 		self.chat_model_response = chat_model(messages)
 		self.answer()
 		
