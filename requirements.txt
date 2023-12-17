@@ -6,6 +6,6 @@ contextlib2 == 21.6.0
 SpeechRecognition == 3.10.1
 gtts == 2.4.0
 jsons == 1.6.3
-pydup == 0.25.1 
+pydub == 0.25.1
 pygame == 2.5.2
 PYAUDIO == 0.2.14
